@@ -47,6 +47,10 @@ final class Drawer implements DrawerInterface
      */
     public function arc(PointInterface $center, BoxInterface $size, $start, $end, ColorInterface $color, $thickness = 1)
     {
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0) {
+            return $this;
+        }
         $x = $center->getX();
         $y = $center->getY();
         $width = $size->getWidth();
@@ -57,7 +61,7 @@ final class Drawer implements DrawerInterface
             $arc = new \GmagickDraw();
 
             $arc->setstrokecolor($pixel);
-            $arc->setstrokewidth(max(1, (int) $thickness));
+            $arc->setstrokewidth($thickness);
             $arc->setfillcolor('transparent');
             $arc->arc(
                 $x - $width / 2,
@@ -87,6 +91,10 @@ final class Drawer implements DrawerInterface
      */
     public function chord(PointInterface $center, BoxInterface $size, $start, $end, ColorInterface $color, $fill = false, $thickness = 1)
     {
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0 && !$fill) {
+            return $this;
+        }
         $x = $center->getX();
         $y = $center->getY();
         $width = $size->getWidth();
@@ -97,7 +105,7 @@ final class Drawer implements DrawerInterface
             $chord = new \GmagickDraw();
 
             $chord->setstrokecolor($pixel);
-            $chord->setstrokewidth(max(1, (int) $thickness));
+            $chord->setstrokewidth($thickness);
 
             if ($fill) {
                 $chord->setfillcolor($pixel);
@@ -143,6 +151,10 @@ final class Drawer implements DrawerInterface
      */
     public function ellipse(PointInterface $center, BoxInterface $size, ColorInterface $color, $fill = false, $thickness = 1)
     {
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0 && !$fill) {
+            return $this;
+        }
         $width = $size->getWidth();
         $height = $size->getHeight();
 
@@ -151,7 +163,7 @@ final class Drawer implements DrawerInterface
             $ellipse = new \GmagickDraw();
 
             $ellipse->setstrokecolor($pixel);
-            $ellipse->setstrokewidth(max(1, (int) $thickness));
+            $ellipse->setstrokewidth($thickness);
 
             if ($fill) {
                 $ellipse->setfillcolor($pixel);
@@ -186,12 +198,16 @@ final class Drawer implements DrawerInterface
      */
     public function line(PointInterface $start, PointInterface $end, ColorInterface $color, $thickness = 1)
     {
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0) {
+            return $this;
+        }
         try {
             $pixel = $this->getColor($color);
             $line = new \GmagickDraw();
 
             $line->setstrokecolor($pixel);
-            $line->setstrokewidth(max(1, (int) $thickness));
+            $line->setstrokewidth($thickness);
             $line->setfillcolor($pixel);
             $line->line(
                 $start->getX(),
@@ -219,6 +235,10 @@ final class Drawer implements DrawerInterface
      */
     public function pieSlice(PointInterface $center, BoxInterface $size, $start, $end, ColorInterface $color, $fill = false, $thickness = 1)
     {
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0 && !$fill) {
+            return $this;
+        }
         $width = $size->getWidth();
         $height = $size->getHeight();
 
@@ -283,6 +303,10 @@ final class Drawer implements DrawerInterface
      */
     public function rectangle(PointInterface $leftTop, PointInterface $rightBottom, ColorInterface $color, $fill = false, $thickness = 1)
     {
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0 && !$fill) {
+            return $this;
+        }
         $minX = min($leftTop->getX(), $rightBottom->getX());
         $maxX = max($leftTop->getX(), $rightBottom->getX());
         $minY = min($leftTop->getY(), $rightBottom->getY());
@@ -293,7 +317,7 @@ final class Drawer implements DrawerInterface
             $rectangle = new \GmagickDraw();
 
             $rectangle->setstrokecolor($pixel);
-            $rectangle->setstrokewidth(max(1, (int) $thickness));
+            $rectangle->setstrokewidth($thickness);
 
             if ($fill) {
                 $rectangle->setfillcolor($pixel);
@@ -319,6 +343,10 @@ final class Drawer implements DrawerInterface
         if (count($coordinates) < 3) {
             throw new InvalidArgumentException(sprintf('Polygon must consist of at least 3 coordinates, %d given', count($coordinates)));
         }
+        $thickness = max(0, (int) round($thickness));
+        if ($thickness === 0 && !$fill) {
+            return $this;
+        }
 
         $points = array_map(function (PointInterface $p) {
             return array('x' => $p->getX(), 'y' => $p->getY());
@@ -329,7 +357,7 @@ final class Drawer implements DrawerInterface
             $polygon = new \GmagickDraw();
 
             $polygon->setstrokecolor($pixel);
-            $polygon->setstrokewidth(max(1, (int) $thickness));
+            $polygon->setstrokewidth($thickness);
 
             if ($fill) {
                 $polygon->setfillcolor($pixel);
