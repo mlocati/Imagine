@@ -515,6 +515,79 @@ abstract class AbstractImageTest extends ImagineTestCase
         unlink('tests/Imagine/Fixtures/mask.png');
     }
 
+    /**
+     * @return \Imagine\Image\ImageInterface
+     */
+    protected function createImageForMask2()
+    {
+        $imagine = $this->getImagine();
+        $rgb = new RGB();
+        $image = $imagine->create(new Box(90, 90), $rgb->color('#f00', 0));
+        for ($y = 0; $y < 90; $y += 30)
+            $image->draw()
+                ->rectangle(new Point(0, $y + 10), new Point(89, $y + 19), $rgb->color('#f00', 50), true)
+                ->rectangle(new Point(0, $y + 20), new Point(89, $y + 29), $rgb->color('#f00', 100), true)
+        ;
+
+        return $image;
+    }
+
+    /**
+     * @param Box $size
+     *
+     * @return \Imagine\Image\ImageInterface
+     */
+    protected function createMaskForMask2(Box $size)
+    {
+        $imagine = $this->getImagine();
+        $rgb = new RGB();
+        $mask = $imagine->create($size, $rgb->color('#000', 0));
+        $drawer = $mask->draw();
+        foreach (array(0 => 100, 30 => 50, 60 => 0) as $y => $alpha) {
+            $drawer
+                ->rectangle(new Point(0, $y), new Point(29, $y + 29), $rgb->color('#fff', $alpha), true)
+                ->rectangle(new Point(30, $y), new Point(59, $y + 29), $rgb->color('#888', $alpha), true)
+                ->rectangle(new Point(60, $y), new Point(89, $y + 29), $rgb->color('#000', $alpha), true)
+            ;
+        }
+
+        return $mask;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getExpectedMaskPixels()
+    {
+        $rgb = new RGB();
+
+        return array(
+            array(new Point(5, 4), $rgb->color('#f00', 0), 0),
+            array(new Point(5, 4), $rgb->color('#f00', 0), 0),
+            array(new Point(15, 4), $rgb->color('#f00', 50), 8),
+            array(new Point(25, 4), $rgb->color('#f00', 100), 0),
+            array(new Point(5, 14), $rgb->color('#f00', 0), 0),
+            array(new Point(15, 14), $rgb->color('#f00', 50), 8),
+            array(new Point(25, 14), $rgb->color('#f00', 100), 0),
+            array(new Point(5, 24), $rgb->color('#f00', 100), 0),
+            array(new Point(15, 24), $rgb->color('#f00', 100), 8),
+            array(new Point(25, 24), $rgb->color('#f00', 100), 0),
+        );
+    }
+
+    public function testMask2()
+    {
+        $image = $this->createImageForMask2();
+        $mask = $this->createMaskForMask2($image->getSize());
+
+        $mask = $mask->mask();
+        $image->applyMask($mask);
+        foreach ($this->getExpectedMaskPixels() as $expected) {
+            list($point, $expectedColor, $maxDistance) = $expected;
+            $this->assertColorSimilar($expectedColor, $image->getColorAt($point), "checking point at " . (string) $point, $maxDistance);
+        }
+    }
+
     public function testColorHistogram()
     {
         $factory = $this->getImagine();

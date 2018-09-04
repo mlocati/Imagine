@@ -51,6 +51,13 @@ final class Image extends AbstractImage
     private $palette;
 
     /**
+     * Is this image ready for applyMask?
+     *
+     * @var string
+     */
+    private $isMaskReady = false;
+
+    /**
      * Constructs a new Image instance.
      *
      * @param resource $resource
@@ -423,16 +430,24 @@ final class Image extends AbstractImage
         if ($size != $maskSize) {
             throw new InvalidArgumentException(sprintf('The given mask doesn\'t match current image\'s size, Current mask\'s dimensions are %s, while image\'s dimensions are %s', $maskSize, $size));
         }
-
-        for ($x = 0, $width = $size->getWidth(); $x < $width; $x++) {
-            for ($y = 0, $height = $size->getHeight(); $y < $height; $y++) {
+        if ($mask->isMaskReady !== true) {
+            $mask = $this->mask();
+        }
+        $width = $size->getWidth();
+        $height = $size->getHeight();
+        for ($x = 0; $x < $width; $x++) {
+            for ($y = 0; $y < $height; $y++) {
                 $position = new Point($x, $y);
                 $color = $this->getColorAt($position);
                 $maskColor = $mask->getColorAt($position);
-                $round = (int) round(max($color->getAlpha(), (100 - $color->getAlpha()) * $maskColor->getRed() / 255));
-
-                if (false === imagesetpixel($this->resource, $x, $y, $this->getColor($color->dissolve($round - $color->getAlpha())))) {
-                    throw new RuntimeException('Apply mask operation failed');
+                $blackAmount = 1 - $maskColor->getRed() / 255;
+                $round = (int) round(100 * $blackAmount);
+                $dissolveBy = $round - $color->getAlpha();
+                if ($dissolveBy < 0) {
+                    $finalColor = $color->dissolve($dissolveBy);
+                    if (false === imagesetpixel($this->resource, $x, $y, $this->getColor($finalColor))) {
+                        throw new RuntimeException('Apply mask operation failed');
+                    }
                 }
             }
         }
@@ -472,6 +487,23 @@ final class Image extends AbstractImage
         if (false === imagefilter($mask->resource, IMG_FILTER_GRAYSCALE)) {
             throw new RuntimeException('Mask operation failed');
         }
+        $size = $mask->getSize();
+        $plainResource = $this->createImage($this->getSize(), 'mask');
+        $black = imagecolorallocate($plainResource, 0, 0, 0);
+        imagefill($plainResource, 0, 0, $black);
+        imagecolordeallocate($plainResource, $black);
+
+        imagealphablending($plainResource, true);
+        imagealphablending($mask->resource, true);
+        $success = imagecopy($plainResource, $mask->resource, 0, 0, 0, 0, $size->getWidth(), $size->getHeight());
+        imagealphablending($plainResource, false);
+        imagedestroy($mask->resource);
+        $mask->resource = $plainResource;
+
+        if ($success === false) {
+            throw new RuntimeException('Mask operation failed');
+        }
+        $mask->isMaskReady = true;
 
         return $mask;
     }

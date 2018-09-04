@@ -12,7 +12,10 @@
 namespace Imagine\Test\Gmagick;
 
 use Imagine\Gmagick\Imagine;
+use Imagine\Image\Box;
 use Imagine\Image\ImageInterface;
+use Imagine\Image\Palette\RGB;
+use Imagine\Image\Point;
 use Imagine\Test\Image\AbstractImageTest;
 
 /**
@@ -54,6 +57,53 @@ class ImageTest extends AbstractImageTest
         return array(
             array('Imagine\Image\Palette\RGB', array(255, 0, 0)),
             array('Imagine\Image\Palette\CMYK', array(10, 0, 0, 0)),
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @see \Imagine\Test\Image\AbstractImageTest::createImageForMask2()
+     */
+    protected function createImageForMask2()
+    {
+        $imagine = $this->getImagine();
+        $rgb = new RGB();
+        $image = $imagine->create(new Box(30, 30), $rgb->color('#f00'));
+
+        return $image;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @see \Imagine\Test\Image\AbstractImageTest::createMaskForMask2()
+     */
+    protected function createMaskForMask2(Box $size)
+    {
+        $imagine = $this->getImagine();
+        $rgb = new RGB();
+        $mask = $imagine->create($size, $rgb->color('#000'));
+        $mask->draw()
+            ->rectangle(new Point(0, 0), new Point(9, 9), $rgb->color('#fff'), true)
+            ->rectangle(new Point(10, 0), new Point(19, 9), $rgb->color('#888'), true)
+            ->rectangle(new Point(20, 0), new Point(29, 9), $rgb->color('#000'), true)
+        ;
+
+        return $mask;
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @see \Imagine\Test\Image\AbstractImageTest::getExpectedMaskPixels()
+     */
+    protected function getExpectedMaskPixels()
+    {
+        $rgb = new RGB();
+
+        return array(
+            array(new Point(5, 4), $rgb->color('#f00'), 0),
         );
     }
 

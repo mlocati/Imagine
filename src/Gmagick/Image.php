@@ -48,6 +48,13 @@ final class Image extends AbstractImage
     private $palette;
 
     /**
+     * Is this image ready for applyMask?
+     *
+     * @var string
+     */
+    private $isMaskReady = false;
+
+    /**
      * @var array|null
      */
     private static $colorspaceMapping = null;
@@ -519,7 +526,9 @@ final class Image extends AbstractImage
         if ($size != $maskSize) {
             throw new InvalidArgumentException(sprintf('The given mask doesn\'t match current image\'s size, current mask\'s dimensions are %s, while image\'s dimensions are %s', $maskSize, $size));
         }
-
+        if ($mask->isMaskReady === false) {
+            $mask = $mask->mask();
+        }
         try {
             $mask = $mask->copy();
             $this->gmagick->compositeimage($mask->gmagick, \Gmagick::COMPOSITE_DEFAULT, 0, 0);
@@ -544,6 +553,7 @@ final class Image extends AbstractImage
         } catch (\GmagickException $e) {
             throw new RuntimeException('Mask operation failed', $e->getCode(), $e);
         }
+        $mask->isMaskReady = true;
 
         return $mask;
     }

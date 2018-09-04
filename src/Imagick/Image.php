@@ -23,6 +23,7 @@ use Imagine\Image\Fill\Gradient\Linear;
 use Imagine\Image\ImageInterface;
 use Imagine\Image\Metadata\MetadataBag;
 use Imagine\Image\Palette\Color\ColorInterface;
+use Imagine\Image\Palette\Grayscale;
 use Imagine\Image\Palette\PaletteInterface;
 use Imagine\Image\Point;
 use Imagine\Image\PointInterface;
@@ -47,6 +48,13 @@ final class Image extends AbstractImage
      * @var \Imagine\Image\Palette\PaletteInterface
      */
     private $palette;
+
+    /**
+     * Is this image ready for applyMask?
+     *
+     * @var string
+     */
+    private $isMaskReady = false;
 
     /**
      * @var bool
@@ -94,7 +102,7 @@ final class Image extends AbstractImage
     {
         parent::__clone();
         if ($this->imagick instanceof \Imagick) {
-            $this->imagick = $this->cloneImagick();
+            $this->imagick = static::cloneImagick($this->imagick);
         }
         $this->palette = clone $this->palette;
         if ($this->layers !== null) {
@@ -242,7 +250,7 @@ final class Image extends AbstractImage
         if ($alpha === 100) {
             $pasteMe = $image->imagick;
         } elseif ($alpha > 0) {
-            $pasteMe = $image->cloneImagick();
+            $pasteMe = static::cloneImagick($image->imagick);
             $pasteMe->setImageOpacity($alpha / 100);
         } else {
             $pasteMe = null;
@@ -486,18 +494,26 @@ final class Image extends AbstractImage
         if ($size != $maskSize) {
             throw new InvalidArgumentException(sprintf('The given mask doesn\'t match current image\'s size, Current mask\'s dimensions are %s, while image\'s dimensions are %s', $maskSize, $size));
         }
+        if ($mask->isMaskReady !== true) {
+            $mask = $mask->mask();
+        }
 
-        $mask = $mask->mask();
-        $mask->imagick->negateImage(true);
-
+        $maskImage = static::cloneImagick($mask->imagick);
         try {
+            $maskImage->negateImage(false);
             // remove transparent areas of the original from the mask
-            $mask->imagick->compositeImage($this->imagick, \Imagick::COMPOSITE_DSTIN, 0, 0);
-            $this->imagick->compositeImage($mask->imagick, \Imagick::COMPOSITE_COPYOPACITY, 0, 0);
-
-            $mask->imagick->clear();
-            $mask->imagick->destroy();
+            //$maskImage->compositeImage($this->imagick, \Imagick::COMPOSITE_DSTIN, 0, 0);
+            $maskImage->compositeImage($this->imagick, \Imagick::COMPOSITE_DSTIN, 0, 0);
+            $this->imagick->compositeImage($maskImage, \Imagick::COMPOSITE_COPYOPACITY, 0, 0);
+            
+            $maskImage->clear();
+            $maskImage->destroy();
         } catch (\ImagickException $e) {
+            try {
+                $maskImage->clear();
+                $maskImage->destroy();
+            } catch (\Exception $x) {
+            }
             throw new RuntimeException('Apply mask operation failed', $e->getCode(), $e);
         }
 
@@ -511,14 +527,25 @@ final class Image extends AbstractImage
      */
     public function mask()
     {
-        $mask = $this->copy();
-
+        $palette = new Grayscale();
+        $size = $this->getSize();
         try {
-            $mask->imagick->modulateImage(100, 0, 100);
-            $mask->imagick->setImageMatte(false);
+            $pixel = new \ImagickPixel((string) '#000000');
+            $pixel->setColorValue(\Imagick::COLOR_ALPHA, 1);
+
+            $imagick = new \Imagick();
+            $imagick->newImage($size->getWidth(), $size->getHeight(), $pixel);
+            $imagick->setImageMatte(false);
+            $imagick->setImageBackgroundColor($pixel);
+            $pixel->clear();
+            $pixel->destroy();
+            $mask = new static($imagick, $palette, clone $this->metadata);
+            $imagick->setImageMatte(false);
+            $mask->paste($this, new Point(0, 0));
         } catch (\ImagickException $e) {
             throw new RuntimeException('Mask operation failed', $e->getCode(), $e);
         }
+        $mask->isMaskReady = true;
 
         return $mask;
     }
@@ -1053,21 +1080,23 @@ final class Image extends AbstractImage
     }
 
     /**
-     * Clone the Imagick resource of this instance.
+     * Clone a Imagick resource.
+     *
+     * @param \Imagick $imagick
      *
      * @throws \ImagickException
      *
      * @return \Imagick
      */
-    protected function cloneImagick()
+    protected static function cloneImagick(\Imagick $imagick)
     {
         // the clone method has been deprecated in imagick 3.1.0b1.
         // we can't use phpversion('imagick') because it may return `@PACKAGE_VERSION@`
         // so, let's check if ImagickDraw has the setResolution method, which has been introduced in the same version 3.1.0b1
         if (method_exists('ImagickDraw', 'setResolution')) {
-            return clone $this->imagick;
+            return clone $imagick;
         }
 
-        return $this->imagick->clone();
+        return $imagick->clone();
     }
 }
